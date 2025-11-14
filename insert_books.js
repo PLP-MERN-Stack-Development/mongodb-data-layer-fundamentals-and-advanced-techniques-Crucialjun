@@ -192,8 +192,107 @@ async function insertBooks() {
 	}
 }
 
+async function queryBooksByYear(year) {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const books = await collection
+			.find({ published_year: { $gt: year } })
+			.toArray();
+		console.log(`Books published after ${year}:`);
+		books.forEach((book) => {
+			console.log(
+				`- "${book.title}" by ${book.author} (${book.published_year})`
+			);
+		});
+	} catch (err) {
+		console.error("Error occurred during query:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+async function queryBooksByGenre(genre) {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const books = await collection.find({ genre: genre }).toArray();
+		console.log(`Books in genre "${genre}":`);
+		books.forEach((book) => {
+			console.log(
+				`- "${book.title}" by ${book.author} (${book.published_year})`
+			);
+		});
+	} catch (err) {
+		console.error("Error occurred during query:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+async function queryBooksByAuthor(author) {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const books = await collection.find({ author: author }).toArray();
+		console.log(`Books by author "${author}":`);
+		books.forEach((book) => {
+			console.log(`- "${book.title}" (${book.published_year})`);
+		});
+	} catch (err) {
+		console.error("Error occurred during query:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+async function updateBook(title, newData) {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const result = await collection.updateOne(
+			{ title: title },
+			{ $set: newData }
+		);
+		console.log(
+			`${result.modifiedCount} book(s) were successfully updated.`
+		);
+	} catch (err) {
+		console.error("Error occurred during update:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+async function deleteBook(title) {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const result = await collection.delete;
+		One({ title: title });
+		console.log(
+			`${result.deletedCount} book(s) were successfully deleted.`
+		);
+	} catch (err) {
+		console.error("Error occurred during deletion:", err);
+	} finally {
+		await client.close();
+	}
+}
+
 // Run the function
-insertBooks().catch(console.error);
+//await insertBooks().catch(console.error);
+await queryBooksByYear(1950).catch(console.error);
 
 /*
  * Example MongoDB queries you can try after running this script:
