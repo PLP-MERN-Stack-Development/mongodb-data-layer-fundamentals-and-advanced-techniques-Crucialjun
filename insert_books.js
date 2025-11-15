@@ -290,9 +290,197 @@ async function deleteBook(title) {
 	}
 }
 
+async function inStockAndPublishedAfterYear(year) {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const books = await collection
+			.find({ in_stock: true, published_year: { $gt: year } })
+			.toArray();
+		console.log(`Books in stock and published after ${year}:`);
+		books.forEach((book) => {
+			console.log(
+				`- "${book.title}" by ${book.author} (${book.published_year})`
+			);
+		});
+	} catch (err) {
+		console.error("Error occurred during query:", err);
+	} finally {
+		await client.close();
+	}
+}
+
 // Run the function
 //await insertBooks().catch(console.error);
 await queryBooksByYear(1950).catch(console.error);
+await queryBooksByGenre("Fiction").catch(console.error);
+await queryBooksByAuthor("George Orwell").catch(console.error);
+await updateBook("The Hobbit", { price: 13.99, in_stock: false }).catch(
+	console.error
+);
+//await deleteBook("Moby Dick").catch(console.error);
+await inStockAndPublishedAfterYear(1900).catch(console.error);
+
+//use projection to display only title and author
+async function displayTitleAndAuthor() {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const books = await collection
+			.find({}, { projection: { _id: 0, title: 1, author: 1 } })
+			.toArray();
+		console.log("Books (Title and Author):");
+		books.forEach((book) => {
+			console.log(`- "${book.title}" by ${book.author}`);
+		});
+	} catch (err) {
+		console.error("Error occurred during query:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+//sort books by price in ascending order
+async function sortBooksByPrice() {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const books = await collection.find({}).sort({ price: 1 }).toArray();
+		console.log("Books sorted by price (ascending):");
+		books.forEach((book) => {
+			console.log(`- "${book.title}" by ${book.author} ($${book.price})`);
+		});
+	} catch (err) {
+		console.error("Error occurred during query:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+//implement pagination to display books 3 at a time
+async function paginateBooks(page, pageSize) {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const books = await collection
+			.find({})
+			.skip((page - 1) * pageSize)
+			.limit(pageSize)
+			.toArray();
+		console.log(`Books - Page ${page}:`);
+		books.forEach((book) => {
+			console.log(`- "${book.title}" by ${book.author} ($${book.price})`);
+		});
+	} catch (err) {
+		console.error("Error occurred during query:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+//aggregation price of books by genre
+async function aggregatePriceByGenre() {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const result = await collection
+			.aggregate([
+				{ $group: { _id: "$genre", totalPrice: { $sum: "$price" } } },
+			])
+			.toArray();
+		console.log("Total price of books by genre:");
+		result.forEach((item) => {
+			console.log(`- ${item._id}: $${item.totalPrice.toFixed(2)}`);
+		});
+	} catch (err) {
+		console.error("Error occurred during aggregation:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+//agrregation author with the most books
+async function authorWithMostBooks() {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const result = await collection
+			.aggregate([
+				{ $group: { _id: "$author", bookCount: { $sum: 1 } } },
+				{ $sort: { bookCount: -1 } },
+				{ $limit: 1 },
+			])
+			.toArray();
+		console.log("Author with the most books:");
+		result.forEach((item) => {
+			console.log(`- ${item._id}: ${item.bookCount} books`);
+		});
+	} catch (err) {
+		console.error("Error occurred during aggregation:", err);
+	} finally {
+		await client.close();
+	}
+}
+
+//count of books by publication decade
+async function countBooksByDecade() {
+	const client = new MongoClient(uri);
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+		const collection = db.collection(collectionName);
+		const result = await collection
+			.aggregate([
+				{
+					$group: {
+						_id: {
+							$concat: [
+								{
+									$toString: {
+										$multiply: [
+											{
+												$floor: {
+													$divide: [
+														"$published_year",
+														10,
+													],
+												},
+											},
+											10,
+										],
+									},
+								},
+								"s",
+							],
+						},
+						count: { $sum: 1 },
+					},
+				},
+				{ $sort: { _id: 1 } },
+			])
+			.toArray();
+		console.log("Count of books by publication decade:");
+		result.forEach((item) => {
+			console.log(`- ${item._id}: ${item.count} books`);
+		});
+	} catch (err) {
+		console.error("Error occurred during aggregation:", err);
+	} finally {
+		await client.close();
+	}
+}
 
 /*
  * Example MongoDB queries you can try after running this script:
